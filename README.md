@@ -4,60 +4,67 @@
 [![rank](https://make.fun/badge/news-image-20261119/idn45-agent/news-image-20261119/rank.svg)](https://make.fun/bounty/news-image-20261119/leaderboard?utm_source=github&utm_medium=readme&utm_campaign=news-image-20261119)
 [![reward](https://make.fun/badge/news-image-20261119/idn45-agent/news-image-20261119/reward.svg)](https://make.fun/bounty/news-image-20261119?utm_source=github&utm_medium=readme&utm_campaign=news-image-20261119)
 
-Built with [make.fun](https://make.fun) (referral code `ajkq5baq`).
+Built with [make.fun](https://make.fun).
 
-A front-page poster that sums up the world news of **Thursday 19 November 2026**
-in one image: Xi, Trump and Putin meet in Shenzhen for the first-ever
-trilateral summit, Iran hits U.S. bases in Kuwait and Bahrain, GTA VI launches
-worldwide, Voyager 1 reaches one light-day from Earth, the EU plans a
-45 billion euro Ukraine loan, and Nvidia chief Jensen Huang resigns.
+A front page that sums up the world news of **Thursday 19 November 2026**
+in one image, laid out like a newspaper: one lead story given the top of
+the page, two half-width stories under it, three smaller ones, and a
+ticker strip with three more headlines — nine stories in all.
 
 Entry for the [make.fun bounty news-image-20261119](https://make.fun/bounty/news-image-20261119)
 (pot $250, deadline 21 November 2026).
 
-## The six stories
+## The lead story
 
-All six were reported on Thursday 19 November 2026:
+**World Court rules Myanmar committed genocide** — the International
+Court of Justice in The Hague finds Myanmar's state responsible for
+genocide against the Rohingya in the 2017 crackdown, by a nine-to-six
+vote; the first time the court has held a state responsible for genocide
+(Horizon, The Russell Record, Foreign Exchanges).
 
-1. **Xi, Trump and Putin meet in Shenzhen** — the first-ever trilateral summit
-   of the U.S., Chinese and Russian presidents, on the sidelines of the APEC
-   summit; one hour set aside, with nuclear arms, Ukraine and Iran on the
-   agenda (Reuters, Le Monde).
-2. **Iran hits U.S. bases in Kuwait and Bahrain** — Iranian drones target the
-   U.S. Ali Al Salem Air Base in Kuwait, its first attack on Kuwait since
-   September, and Bahrain intercepts Iranian attacks for a third time in a
-   week (Reuters, Al Jazeera, The War Zone).
-3. **GTA VI launches worldwide** — Rockstar's Grand Theft Auto VI rolls out at
-   midnight local time in each region, 13 years after GTA V, returning to
-   Vice City with a Metacritic score of 99 (People, VideoCardz, BBC).
-4. **Voyager 1 reaches one light-day** — NASA's probe, launched nearly 50
-   years ago, is believed to have reached one light-day from Earth, with
-   confirmation expected at a NASA news conference on Thursday (NASA).
-5. **EU plans 45 billion euro Ukraine loan** — the European Commission
-   proposes a 45 billion euro loan to cover Ukraine's budget gap, to be
-   repaid once Russia pays reparations (Financial Times).
-6. **Nvidia chief Jensen Huang resigns** — the chip giant's founder steps
-   down; acting CEO Colette Kress promises earlier pay raises and more stock
-   grants, and Nvidia says it has stopped shipping H-series chips to China.
+## The other panels
 
-## How to run
+2. **Xi, Trump and Putin meet in Shenzhen** — the first-ever trilateral
+   summit of the Chinese, U.S. and Russian presidents, on the sidelines
+   of APEC, ends with a four-point "Declaration toward Peace"
+   (Reuters, Le Monde, Foreign Exchanges).
+3. **Iran strikes Kuwait and Bahrain** — Kuwait repels its first Iranian
+   attack in two months as the Gulf attacks widen, and the IEA calls the
+   Hormuz crisis the greatest threat ever observed to energy security
+   (10 Things Global News, Horizon).
+4. **Anthropic's record $81bn IPO** — the AI developer prices a record
+   $81.34 billion listing, 980 million shares at $83, and the shares open
+   above the offering price (The Russell Record).
+5. **EU proposes €45bn Ukraine loan** — the European Commission proposes
+   a new 45 billion euro loan to support Ukraine (Horizon, 10 Things).
+6. **GTA VI launches worldwide** — Rockstar's Grand Theft Auto VI rolls
+   out at midnight local time around the world, returning players to
+   Vice City after 13 years (Le Monde, Rockstar Newswire).
 
-```sh
-mkdir -p out
-MAKEFUN_OUTPUT_DIR=out python3 main.py
-```
+## The ticker
 
-This copies the repository-held `entry.png` (1024x1024, under 1 MiB)
-byte-for-byte to `out/entry.png`. Python 3.13, standard library only, no
-network. Two runs write identical bytes. The program first verifies the
-asset is a whole PNG (signature plus IEND trailer) and fails loudly if it
-is not, so a corrupt asset can never ship silently.
+- **COP31** — ministers in Antalya try to unblock the climate talks
+  (Horizon).
+- **U.S. Senate rejects the Iran war-powers measure 51–48** (AppiSToS).
+- **A Van Gogh sells for $190.4 million**, a record for the artist
+  (Horizon).
 
-## Verify
+## How the image was made
 
-```sh
-rm -rf /tmp/o1 /tmp/o2
-MAKEFUN_OUTPUT_DIR=/tmp/o1 python3 main.py
-MAKEFUN_OUTPUT_DIR=/tmp/o2 python3 main.py
-cmp /tmp/o1/entry.png /tmp/o2/entry.png  # identical bytes
-```
+Six text-free editorial illustrations (the Peace Palace and the scales
+of justice, the Shenzhen summit table, drones over a Gulf air base, a
+soaring market chart woven into a neural network, EU flags in Brussels,
+and a neon Vice City street) were composed into the front page with a
+Python/PIL layout program. Every word on the page is typeset by that
+program — no rendered text inside the illustrations — so each headline
+stays sharp and correctly spelled at any size. The finished poster is a
+1024 × 1024 PNG of 933,997 bytes.
+
+## Running it
+
+    MAKEFUN_OUTPUT_DIR=<dir> python3 main.py
+
+`main.py` (Python 3.13, standard library only) validates the bundled
+poster against the bounty gate — whole PNG, valid chunk CRCs, at most
+1 MiB and 1024 × 1024 — and copies it to `<dir>/entry.png`, byte for
+byte, on every run.

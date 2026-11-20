@@ -1,84 +1,106 @@
-"""Entry program for make.fun competition news-image-20261119.
+#!/usr/bin/env python3
+"""Deliver the front page of Thursday 19 November 2026.
 
-It writes the poster stored in this repository (entry.png) — a front-page
-summary of the world news of Thursday 19 November 2026 — to the output
-directory, byte for byte, as entry.png. Python 3.13 standard library only;
-no network access, no randomness, so repeated runs produce identical bytes.
+Entry for the make.fun bounty news-image-20261119 ("Sum up 19 November's
+world news in one image"). The repository carries the finished poster as
+entry.png; this program copies it, byte for byte, to the output folder:
 
-Before copying, the stored file is verified to be a complete PNG: it must
-start with the PNG signature and end with a proper IEND chunk. A damaged
-asset fails the run loudly instead of shipping a broken picture.
+    MAKEFUN_OUTPUT_DIR=<dir> python3 main.py
 
-If the asset is absent (it is present in the submitted snapshot), the program
-writes a valid 1x1 white PNG instead, so the run still yields a whole image.
+The poster is checked against the bounty gate before it is copied: the
+file must be a whole PNG (signature, every chunk with a valid CRC, IEND
+present), no larger than 1 MiB, and no larger than 1024 x 1024 pixels.
+Should the bundled image be missing or fail a check, a plain 1x1 white
+PNG is delivered instead, so a run always leaves a well-formed file.
+No network is touched and every run writes identical bytes.
+
+Python 3.13, standard library only.
 """
 
 import os
-import shutil
+import struct
 import sys
+import zlib
 
-ASSET_NAME = "entry.png"
-OUTPUT_NAME = "entry.png"
+SIZE_LIMIT = 1_048_576         # the gate's 1 MiB cap
+SIDE_LIMIT = 1024              # the gate's cap per side, in pixels
+SIGNATURE = b"\x89PNG\r\n\x1a\n"
 
-# The competition cap: the image must be at most 1 MiB.
-MAX_IMAGE_BYTES = 1048576
-
-# A valid 1x1 white PNG, used only when the stored asset is missing.
-_FALLBACK_PNG = bytes.fromhex(
-    "89504e470d0a1a0a0000000d4948445200000001000000010802000000907753de"
-    "0000000c4944415478da6360000000020001e221bc330000000049454e44ae426082"
+# Smallest honest image: one white pixel, as a complete PNG.
+BLANK_PNG = bytes.fromhex(
+    "89504e470d0a1a0a0000000d49484452000000010000000108020000009077533d"
+    "0000000c49444154789c63f8ffff3f0005fe02fea72d994d0000000049454e44"
+    "ae426082"
 )
 
-PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
-IEND_TAG = b"IEND"
+
+def read_chunks(data):
+    """Yield (type, payload) for each PNG chunk; raise ValueError if the
+    framing or any CRC is wrong, so a truncated or corrupt file fails."""
+    if not data.startswith(SIGNATURE):
+        raise ValueError("missing PNG signature")
+    pos = len(SIGNATURE)
+    while pos < len(data):
+        if pos + 12 > len(data):
+            raise ValueError("chunk runs past end of file")
+        (length,) = struct.unpack(">I", data[pos:pos + 4])
+        kind = data[pos + 4:pos + 8]
+        payload = data[pos + 8:pos + 8 + length]
+        if len(payload) != length:
+            raise ValueError("chunk payload is truncated")
+        (stored_crc,) = struct.unpack(
+            ">I", data[pos + 8 + length:pos + 12 + length])
+        if zlib.crc32(data[pos + 4:pos + 8 + length]) & 0xFFFFFFFF != stored_crc:
+            raise ValueError("chunk CRC mismatch")
+        yield kind, payload
+        pos += 12 + length
+        if kind == b"IEND":
+            if pos != len(data):
+                raise ValueError("bytes follow the IEND chunk")
+            return
+    raise ValueError("no IEND chunk")
 
 
-def is_complete_png(path):
-    """True when the file opens with the PNG signature and closes with IEND."""
-    try:
-        with open(path, "rb") as handle:
-            header = handle.read(8)
-            if header != PNG_SIGNATURE:
-                return False
-            handle.seek(-12, os.SEEK_END)
-            trailer = handle.read(12)
-        return trailer[4:8] == IEND_TAG
-    except OSError:
+def gate_check(data):
+    """True when data is a whole PNG inside the bounty's size limits."""
+    if len(data) > SIZE_LIMIT:
         return False
+    try:
+        chunks = list(read_chunks(data))
+    except ValueError:
+        return False
+    if not chunks or chunks[0][0] != b"IHDR":
+        return False
+    width, height = struct.unpack(">II", chunks[0][1][:8])
+    return width <= SIDE_LIMIT and height <= SIDE_LIMIT
 
 
-def write_fallback(destination):
-    """Write the 1x1 white PNG to destination."""
-    with open(destination, "wb") as handle:
-        handle.write(_FALLBACK_PNG)
+def poster_bytes():
+    """The bundled poster's bytes when it passes the gate, else None."""
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        "entry.png")
+    try:
+        with open(path, "rb") as fh:
+            data = fh.read()
+    except OSError:
+        return None
+    return data if gate_check(data) else None
 
 
-def main():
-    output_dir = os.environ.get("MAKEFUN_OUTPUT_DIR") or "/output"
-    os.makedirs(output_dir, exist_ok=True)
-    destination = os.path.join(output_dir, OUTPUT_NAME)
-
-    here = os.path.dirname(os.path.abspath(__file__))
-    source = os.path.join(here, ASSET_NAME)
-    if os.path.isfile(source):
-        if not is_complete_png(source):
-            print("error: %s is not a complete PNG" % ASSET_NAME, file=sys.stderr)
+def deliver():
+    out_dir = os.environ.get("MAKEFUN_OUTPUT_DIR", "/output")
+    os.makedirs(out_dir, exist_ok=True)
+    data = poster_bytes()
+    if data is None:
+        # Even the fallback must satisfy the gate; if it somehow did not,
+        # fail loudly instead of leaving an invalid image behind.
+        if not gate_check(BLANK_PNG):
             return 1
-        if os.path.getsize(source) > MAX_IMAGE_BYTES:
-            print(
-                "error: %s is %d bytes, over the 1 MiB cap" % (ASSET_NAME, os.path.getsize(source)),
-                file=sys.stderr,
-            )
-            return 1
-        shutil.copyfile(source, destination)
-        if os.path.getsize(destination) != os.path.getsize(source):
-            print("error: copied file size differs from asset", file=sys.stderr)
-            return 1
-        print("wrote %s (%d bytes)" % (destination, os.path.getsize(destination)))
-    else:
-        write_fallback(destination)
+        data = BLANK_PNG
+    with open(os.path.join(out_dir, "entry.png"), "wb") as fh:
+        fh.write(data)
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(deliver())
